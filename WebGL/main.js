@@ -25,11 +25,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // プログラムオブジェクトの生成とリンク
     var prg = create_program(v_shader, f_shader);
     
+    var attLocation = new Array(2);
     // attributeLocationの取得、positionが何番目のAttributeかを返す
-    var attLocation = gl.getAttribLocation(prg, 'position');
+    attLocation[0] = gl.getAttribLocation(prg, 'position');
+    attLocation[1] = gl.getAttribLocation(prg, 'color');
     
-    // attributeの要素数(この場合は xyz の3要素)
-    var attStride = 3;
+    
+    var attStride = new Array(2);
+    // attribute1の要素数(この場合は xyz の3要素)
+    attStride[0] = 3;
+    attStride[1] = 4;
     
     // モデル(頂点)データ
     var vertex_position = [
@@ -37,19 +42,30 @@ document.addEventListener('DOMContentLoaded', function () {
          1.0, -0.4, 0.0,
         -1.0, -0.4, 0.0
     ];
+
+    // 頂点の色情報を格納する配列
+    var vertex_color = [
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0
+    ]
     
     // VBOの生成
-    var vbo = create_vbo(vertex_position);
+    var position_vbo = create_vbo(vertex_position);
+    var color_vbo = create_vbo(vertex_color);
     
-    // WebGLにVBOをバインド
-    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    
+    // WebGLにVBOをバインド(位置情報)
+    gl.bindBuffer(gl.ARRAY_BUFFER, position_vbo);
     // attribute属性を有効にする
-    gl.enableVertexAttribArray(attLocation);
-    
+    gl.enableVertexAttribArray(attLocation[0]);
     // attribute属性を登録、VBOからシェーダにデータを渡す
-    gl.vertexAttribPointer(attLocation, attStride, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(attLocation[0], attStride[0], gl.FLOAT, false, 0, 0);
     
+    // WebGLにVBOをバインド(色情報)
+    gl.bindBuffer(gl.ARRAY_BUFFER, color_vbo);
+    gl.enableVertexAttribArray(attLocation[1]);
+    gl.vertexAttribPointer(attLocation[1], attStride[1], gl.FLOAT, false, 0, 0);
+
     // minMatrix.js を用いた行列関連処理
     // matIVオブジェクトを生成
     var m = new matIV();
