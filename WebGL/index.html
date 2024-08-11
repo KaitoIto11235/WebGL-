@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WebGL入門</title>
+    <script src="./main.js"></script> <!-- main.jsを読み込む -->
+
+    <!-- create vertex shader -->
+    <!-- attributeをつけた変数に、WebGL側であらかじめデータを仕込んでおき、シェーダ側に渡す -->
+    <script id="vertexShader" type="x-shader/x-vartex">
+      attribute vec3 position;
+      void main(void){
+        gl_Position = vec4(position, 1.0);
+      }
+    </script>
+
+
+    <!-- create fragment shader -->
+    <script id="fragmentShader" type="x-shader/x-fragment">
+      precision mediump float;
+      void main(void){
+        gl_FragColor = vec4(0.0, 0.5, 0.5, 0.5);
+      }
+    </script>
+  </head>
+
+  <body>
+    <!-- bodyタグの中にCanvasを配置する -->
+    <canvas id="canvas"></canvas>
+  </body>
+</html>
