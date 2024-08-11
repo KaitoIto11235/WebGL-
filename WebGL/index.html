@@ -3,18 +3,28 @@
   <head>
     <title>WebGL入門</title>
     <script src="./main.js"></script> <!-- main.jsを読み込む -->
+    <script src="./minMatrix.js"></script>
 
     <!-- create vertex shader -->
-    <!-- attributeをつけた変数に、WebGL側であらかじめデータを仕込んでおき、シェーダ側に渡す -->
-    <script id="vertexShader" type="x-shader/x-vartex">
+    <!-- attributeをつけた変数に、WebGL側であらかじめ仕込まれたデータが渡される -->
+    <!-- uniform修飾子をつけた変数は、すべての頂点に対して一律にに処理される情報をを渡す -->
+    <script id="vertexShader" type="x-shader/x-vertex">
       attribute vec3 position;
+      uniform mat4 mvpMatrix;
       void main(void){
-        gl_Position = vec4(position, 1.0);
+        gl_Position = mvpMatrix * vec4(position, 1.0);
       }
     </script>
 
-
     <!-- create fragment shader -->
+    <!-- 
+    varying修飾子付きの変数は、頂点シェーダからフラグメントシェーダへデータを渡す
+    varying vec4 vColor;
+    void main(void)
+    {
+      gl_FlagColor = vColor;
+    }
+    -->
     <script id="fragmentShader" type="x-shader/x-fragment">
       precision mediump float;
       void main(void){

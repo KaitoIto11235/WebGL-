@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // canvas要素からwebglコンテキストを取得する
     const gl = canvas.getContext('webgl');
-
     // WebGLコンテキストが取得できたかどうか調べる
     if (!gl) {
         alert('webgl not supported!');
@@ -14,53 +13,167 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     // canvasを初期化する色を設定する
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
-
+    // canvasを初期化する際の深度を設定する
+    gl.clearDepth(1.0);
     // canvasを初期化する
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-
-    // プログラムオブジェクトを作成する
-    const program = gl.createProgram();
-
-    // シェーダのソースを取得する
-    const vertexShaderSource = document.getElementById('vertexShader').textContent;
-    const fragmentShaderSource = document.getElementById('fragmentShader').textContent;
-
-    // シェーダをコンパイルして、プログラムオブジェクトにシェーダを割り当てる
-    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vertexShader, vertexShaderSource);
-    gl.compileShader(vertexShader);
-    gl.attachShader(program, vertexShader);
-    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(fragmentShader, fragmentShaderSource);
-    gl.compileShader(fragmentShader);
-    gl.attachShader(program, fragmentShader);
-
-    // シェーダをリンクする
-    gl.linkProgram(program);
-    // プログラムオブジェクトを有効にする
-    gl.useProgram(program);
-
-    // 3つの頂点の座標を定義する
-    const triangleVertexPosition = [
-        0.0, 0.8, 0.0,
-        -0.8, -0.8, -0.0,
-        0.8, -0.8, 0.0
+    // 頂点シェーダとフラグメントシェーダの生成
+    var v_shader = create_shader('vertexShader');
+    var f_shader = create_shader('fragmentShader');
+    
+    // プログラムオブジェクトの生成とリンク
+    var prg = create_program(v_shader, f_shader);
+    
+    // attributeLocationの取得、positionが何番目のAttributeかを返す
+    var attLocation = gl.getAttribLocation(prg, 'position');
+    
+    // attributeの要素数(この場合は xyz の3要素)
+    var attStride = 3;
+    
+    // モデル(頂点)データ
+    var vertex_position = [
+         0.0, 1.0, 0.0,
+         1.0, -0.4, 0.0,
+        -1.0, -0.4, 0.0
     ];
-
-    // 頂点バッファを作成する
-    const triangleVertexBuffer = gl.createBuffer();
-    // 頂点バッファをバインドする
-    gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexBuffer);
-    // 頂点バッファに頂点データをセットする
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangleVertexPosition), gl.STATIC_DRAW);
-
-    // Positionのロケーションを取得し、バッファを割り当てる
-    const positionLocation = gl.getAttribLocation(program, 'position');
-    gl.enableVertexAttribArray(positionLocation);
-    gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-
-    // 描画する
+    
+    // VBOの生成
+    var vbo = create_vbo(vertex_position);
+    
+    // WebGLにVBOをバインド
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    
+    // attribute属性を有効にする
+    gl.enableVertexAttribArray(attLocation);
+    
+    // attribute属性を登録、VBOからシェーダにデータを渡す
+    gl.vertexAttribPointer(attLocation, attStride, gl.FLOAT, false, 0, 0);
+    
+    // minMatrix.js を用いた行列関連処理
+    // matIVオブジェクトを生成
+    var m = new matIV();
+    
+    // 各種行列の生成と初期化
+    var mMatrix = m.identity(m.create());
+    var vMatrix = m.identity(m.create());
+    var pMatrix = m.identity(m.create());
+    var mvpMatrix = m.identity(m.create());
+    
+    // ビュー座標変換行列
+    m.lookAt([0.0, 1.0, 3.0], [0, 0, 0], [0, 1, 0], vMatrix);
+    
+    // プロジェクション座標変換行列
+    m.perspective(90, canvas.width / canvas.height, 0.1, 100, pMatrix);
+    
+    // 各行列を掛け合わせ座標変換行列を完成させる
+    m.multiply(pMatrix, vMatrix, mvpMatrix);
+    m.multiply(mvpMatrix, mMatrix, mvpMatrix);
+    
+    // uniformLocationの取得
+    var uniLocation = gl.getUniformLocation(prg, 'mvpMatrix');
+    
+    // uniformLocationへ座標変換行列を登録
+    gl.uniformMatrix4fv(uniLocation, false, mvpMatrix);
+    
+    // モデルの描画
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    
+    // コンテキストの再描画
     gl.flush();
+
+
+    // シェーダを生成する関数
+    function create_shader(id){
+        // シェーダを格納する変数
+        var shader;
+        
+        // HTMLからscriptタグへの参照を取得
+        var scriptElement = document.getElementById(id);
+        
+        // scriptタグが存在しない場合は抜ける
+        if(!scriptElement){return;}
+        
+        // scriptタグのtype属性をチェック
+        switch(scriptElement.type){
+            
+            // 頂点シェーダの場合
+            case 'x-shader/x-vertex':
+                shader = gl.createShader(gl.VERTEX_SHADER);
+                break;
+                
+            // フラグメントシェーダの場合
+            case 'x-shader/x-fragment':
+                shader = gl.createShader(gl.FRAGMENT_SHADER);
+                break;
+            default :
+                return;
+        }
+        
+        // 生成されたシェーダにソースを割り当てる
+        gl.shaderSource(shader, scriptElement.text);
+        
+        // シェーダをコンパイルする
+        gl.compileShader(shader);
+        
+        // シェーダが正しくコンパイルされたかチェック
+        if(gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+            
+            // 成功していたらシェーダを返して終了
+            return shader;
+        }else{
+            
+            // 失敗していたらエラーログをアラートする
+            alert(gl.getShaderInfoLog(shader));
+        }
+    }
+
+    // プログラムオブジェクトを生成しシェーダをリンクする関数
+    // プログラムオブジェクトとは、頂点シェーダからフラグメントシェーダ、またWebGLプログラムと各シェーダとのデータのやり取りを管理するオブジェクト
+    function create_program(vs, fs){
+        // プログラムオブジェクトの生成
+        var program = gl.createProgram();
+        
+        // プログラムオブジェクトにシェーダを割り当てる
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+        
+        
+        // シェーダをリンク
+        gl.linkProgram(program);
+        
+        // シェーダのリンクが正しく行なわれたかチェック
+        if(gl.getProgramParameter(program, gl.LINK_STATUS)){
+        
+            // 成功していたらプログラムオブジェクトを有効にする
+            gl.useProgram(program);
+            
+            // プログラムオブジェクトを返して終了
+            return program;
+        }else{
+            
+            // 失敗していたらエラーログをアラートする
+            alert(gl.getProgramInfoLog(program));
+        }
+    }
+
+    // VBOを生成する関数
+    // 頂点バッファは頂点に関する情報を保存できる記憶領域であり、ここに転送されたデータが、紐づけられたattribute変数に渡される
+    function create_vbo(data){
+        // バッファオブジェクトの生成
+        var vbo = gl.createBuffer();
+        
+        // バッファをバインドする
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        
+        // バッファにデータをセット
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+        
+        // バッファのバインドを無効化。WebGLにバインドできるバッファは一度につき一つだけだから。
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        
+        // 生成した VBO を返して終了
+        return vbo;
+    }
+
   });
